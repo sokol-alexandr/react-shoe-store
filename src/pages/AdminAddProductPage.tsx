@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDatabase } from '../context/DatabaseContext';
 import { supabase } from '../lib/supabase';
+import { toast } from 'react-hot-toast';
 
 export function AdminAddProductPage() {
   const { addProduct } = useDatabase();
@@ -13,12 +14,12 @@ export function AdminAddProductPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     
     // Basic validation to check if all inputs including file are present
     if (!name || !price || !imageFile) {
-      alert('Please fill in all fields and select an image file.');
+      toast.error('Please fill in all fields and select an image file.');
       return;
     }
 
@@ -48,11 +49,11 @@ export function AdminAddProductPage() {
       // 4. Pass the newly retrieved cloud image URL into our main database product creator
       await addProduct(name, Number(price), publicUrl);
       
-      alert('Product added successfully with real cloud storage image!');
+      toast.success('Product added successfully with real cloud storage image!');
       navigate('/');
     } catch (error: any) {
       console.error('Error uploading image or adding product:', error.message);
-      alert(`Failed to save product: ${error.message}`);
+      toast.error(`Failed to save product: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }

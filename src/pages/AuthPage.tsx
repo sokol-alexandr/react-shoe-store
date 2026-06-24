@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Role } from '../types';
+import { toast } from 'react-hot-toast/headless';
 
 export function AuthPage() {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ export function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMessage(null);
@@ -41,7 +42,7 @@ export function AuthPage() {
         if (error) throw error;
         
         if (data.user) {
-          alert('Registration complete! Welcome to the store.');
+          toast.success('Registration complete! Welcome to the store.');
           navigate('/');
         }
       } else {

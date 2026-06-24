@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDatabase } from '../context/DatabaseContext';
 import { useAuth } from '../context/AuthContext';
 import type { CartItem } from '../types';
-
+import { toast } from 'react-hot-toast';
 type CartPageProps = {
   cartItems: CartItem[];
   onIncrease: (product: any) => void;
@@ -21,18 +21,18 @@ export function CartPage({ cartItems, onIncrease, onDecrease, onRemove, onClearC
   const handleCheckout = async () => {
     // Safety guard fallback: technically button is hidden, but code check keeps pipeline secure
     if (!user) {
-      alert('Please log in to complete your purchase.');
+      toast('Please log in to complete your purchase.');
       navigate('/auth');
       return;
     }
 
     try {
       await placeOrder(user.id, cartItems, totalPrice);
-      alert('Order placed successfully! Check your history in profile.');
+      toast.success('Order placed successfully! Check your history in profile.');
       onClearCart();
       navigate('/profile');
     } catch (error: any) {
-      alert(`Checkout failed: ${error.message}`);
+      toast.error(`Checkout failed: ${error.message}`);
     }
   };
 

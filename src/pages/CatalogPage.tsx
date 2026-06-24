@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDatabase } from '../context/DatabaseContext';
 import { supabase } from '../lib/supabase';
 import type { Product } from '../types';
+import { toast } from 'react-hot-toast';
 
 type CatalogPageProps = {
   products: Product[];
@@ -31,7 +32,7 @@ export function CatalogPage({ products, onAddToCart }: CatalogPageProps) {
   };
 
   // Handle saving the updated fields
-  const handleUpdateSubmit = async (e: React.FormEvent) => {
+  const handleUpdateSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
 
@@ -70,7 +71,7 @@ export function CatalogPage({ products, onAddToCart }: CatalogPageProps) {
       await updateProduct(editingProduct.id, editName, Number(editPrice), finalImageUrl);
       setEditingProduct(null); // Terminate modal viewport
     } catch (error: any) {
-      alert(`Update failed: ${error.message}`);
+      toast.error(`Update failed: ${error.message}`);
     } finally {
       setIsUpdating(false);
     }
@@ -81,7 +82,7 @@ export function CatalogPage({ products, onAddToCart }: CatalogPageProps) {
       try {
         await deleteProduct(product.id, product.imageUrl);
       } catch (error: any) {
-        alert(`Delete failed: ${error.message}`);
+        toast.error(`Delete failed: ${error.message}`);
       }
     }
   };

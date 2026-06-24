@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
 import type { Product, CartItem } from './types';
+import { Toaster } from 'react-hot-toast';
 
 import { CatalogPage } from './pages/CatalogPage';
 import { CartPage } from './pages/CartPage';
@@ -164,6 +165,17 @@ export default function App() {
           <Route path="/admin/add-product" element={<AdminAddProductPage />} />
           <Route path="/auth" element={<AuthPage />} />
         </Routes>
+        <Toaster 
+          position="top-right" 
+          toastOptions={{
+            duration: 3000,
+            style: {
+              background: '#333',
+              color: '#fff',
+            },
+          }}
+        
+        />
       </main>
     </div>
   );
