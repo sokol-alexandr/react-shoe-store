@@ -6,9 +6,11 @@ type DatabaseContextType = {
   products: Product[];
   orders: Order[];
   isLoading: boolean;
-  placeOrder: (customerId: number, items: CartItem[], totalAmount: number) => Promise<void>;
+  placeOrder: (customerId: number | string, items: CartItem[], totalAmount: number) => Promise<void>;
   updateOrderStatus: (orderId: string, newStatus: OrderStatus) => Promise<void>;
-  addProduct: (name: string, price: number, imageUrl: string) => Promise<void>; // Added new function type
+  addProduct: (name: string, price: number, imageUrl: string) => Promise<void>;
+  deleteProduct: (productId: number, imageUrl: string) => Promise<void>; // Added for CRUD Delete
+  updateProduct: (productId: number, name: string, price: number, imageUrl: string) => Promise<void>; // Added for CRUD Update
 };
 
 const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
@@ -34,7 +36,7 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     fetchData();
   }, []);
 
-  const placeOrder = async (customerId: number, items: CartItem[], totalAmount: number) => {
+  const placeOrder = async (customerId: string | number, items: CartItem[], totalAmount: number) => {
     const newOrder: Order = {
       id: `ORD-${Math.floor(Math.random() * 10000)}`,
       customerId,
@@ -54,24 +56,53 @@ export function DatabaseProvider({ children }: { children: ReactNode }) {
     if (error) console.error('Error updating order status:', error.message);
   };
 
-  // NEW: ADD PRODUCT (INSERT INTO SUPABASE)
   const addProduct = async (name: string, price: number, imageUrl: string) => {
-    // Insert into Supabase and request the newly created row back (.select())
-    const { data, error } = await supabase
-      .from('products')
-      .insert([{ name, price, "imageUrl": imageUrl }])
-      .select();
-
+    const { data, error } = await supabase.from('products').insert([{ name, price, imageUrl }]).select();
     if (error) {
-      console.error('Error adding product to Supabase:', error.message);
+      console.error('Error adding product:', error.message);
     } else if (data && data[0]) {
-      // Update local state by appending the newly created product returned from database
       setProducts((prev) => [...prev, data[0] as Product]);
     }
   };
 
+  // CRUD: DELETE PRODUCT FROM DATABASE AND STORAGE
+  const deleteProduct = async (productId: number, imageUrl: string) => {
+    // 1. Delete row from PostgreSQL database table
+    const { error: dbError } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', productId);
+
+    if (dbError) throw dbError;
+
+    // 2. Parse storage path from public URL and delete the binary file asset
+    const storagePath = imageUrl.split('product-images/').pop();
+    if (storagePath) {
+      await supabase.storage.from('product-images').remove([storagePath]);
+    }
+
+    // 3. Update local client state
+    setProducts((prev) => prev.filter((product) => product.id !== productId));
+  };
+
+  // CRUD: UPDATE PRODUCT DETAILS (PRICE, NAME, IMAGE URL)
+  const updateProduct = async (productId: number, name: string, price: number, imageUrl: string) => {
+    // 1. Send SQL UPDATE command to Supabase
+    const { error } = await supabase
+      .from('products')
+      .update({ name, price, imageUrl })
+      .eq('id', productId);
+
+    if (error) throw error;
+
+    // 2. Update local UI state reactively
+    setProducts((prev) =>
+      prev.map((p) => (p.id === productId ? { ...p, name, price, imageUrl } : p))
+    );
+  };
+
   return (
-    <DatabaseContext.Provider value={{ products, orders, isLoading, placeOrder, updateOrderStatus, addProduct }}>
+    <DatabaseContext.Provider value={{ products, orders, isLoading, placeOrder, updateOrderStatus, addProduct, deleteProduct, updateProduct }}>
       {children}
     </DatabaseContext.Provider>
   );

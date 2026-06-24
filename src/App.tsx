@@ -25,10 +25,14 @@ export default function App() {
 
   // EFFECT: Clear the cart and redirect to home ONLY when the user role actually changes
   useEffect(() => {
-    if (user?.role !== currentRole) {
-      setCartItems([]); // Clear the cart safely
-      setCurrentRole(user?.role); // Update tracked role
-      navigate('/'); // Redirect to homepage
+
+  if (user?.role !== currentRole) {
+    const transitionedFromGuestToCustomer = !currentRole && user?.role === 'CUSTOMER';
+    if (!transitionedFromGuestToCustomer) {
+      setCartItems([]); 
+    }
+    setCurrentRole(user?.role); 
+    navigate('/'); 
     }
   }, [user?.role, currentRole, navigate]);
 

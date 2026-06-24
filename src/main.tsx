@@ -1,19 +1,20 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import { DatabaseProvider } from './context/DatabaseContext';
-import App from './App.tsx';
-import './index.css';
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { HashRouter } from 'react-router-dom' // Changed from BrowserRouter
+import App from './App.tsx'
+import './index.css'
+import { AuthProvider } from './context/AuthContext.tsx'
+import { DatabaseProvider } from './context/DatabaseContext.tsx'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <DatabaseProvider>
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <AuthProvider>
+      <DatabaseProvider>
+        <HashRouter>
           <App />
-        </DatabaseProvider>
-      </AuthProvider>
-    </BrowserRouter>
-  </StrictMode>,
+        </HashRouter>
+      </DatabaseProvider>
+    </AuthProvider>
+  </React.StrictMode>,
+  
 )

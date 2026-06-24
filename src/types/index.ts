@@ -33,7 +33,7 @@ export type CartItem = {
 // Represents a completed order
 export type Order = {
   id: string; // Typically a unique string like "ORD-1001"
-  customerId: number; // Association to the User who made the order
+  customerId: string | number; // Association to the User who made the order
   items: CartItem[]; // List of items purchased
   totalAmount: number; // Calculated total price
   status: OrderStatus; 

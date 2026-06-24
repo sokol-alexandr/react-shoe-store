@@ -1,135 +1,112 @@
 import { Link, useNavigate } from 'react-router-dom';
-import type { CartItem, Product } from '../types';
-
-// Import our custom hooks
 import { useDatabase } from '../context/DatabaseContext';
 import { useAuth } from '../context/AuthContext';
-
-// --- Circular Button Component ---
-type CircleButtonProps = {
-  onClick: () => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-};
-
-function CircleButton({ onClick, disabled, children }: CircleButtonProps) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition-all ${
-        disabled
-          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-          : 'bg-gray-200 text-gray-700 hover:bg-gray-300 active:scale-95 shadow-sm'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-// --- Trash Icon Component ---
-const TrashIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-  </svg>
-);
+import type { CartItem } from '../types';
 
 type CartPageProps = {
   cartItems: CartItem[];
-  onIncrease: (product: Product) => void;
+  onIncrease: (product: any) => void;
   onDecrease: (productId: number) => void;
   onRemove: (productId: number) => void;
   onClearCart: () => void;
 };
 
 export function CartPage({ cartItems, onIncrease, onDecrease, onRemove, onClearCart }: CartPageProps) {
-  // Calculate total price based on item price and its quantity
-  const totalPrice = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-
-  // Get functions and user from context
   const { placeOrder } = useDatabase();
-  const { user } = useAuth();
+  const { user } = useAuth(); // Pull real-time auth state to verify if user is logged in
   const navigate = useNavigate();
 
-  // Handler for the Checkout button
+  const totalPrice = cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+
   const handleCheckout = async () => {
-    if (!user) return; 
-    
-    // Send order to the database
-    await placeOrder(user.id, cartItems, totalPrice);
-    onClearCart(); // Clear the cart after successful order placement
-    // Redirect to the home page after ordering
-    navigate('/profile'); // Redirect to profile page to view order history
+    // Safety guard fallback: technically button is hidden, but code check keeps pipeline secure
+    if (!user) {
+      alert('Please log in to complete your purchase.');
+      navigate('/auth');
+      return;
+    }
+
+    try {
+      await placeOrder(user.id, cartItems, totalPrice);
+      alert('Order placed successfully! Check your history in profile.');
+      onClearCart();
+      navigate('/profile');
+    } catch (error: any) {
+      alert(`Checkout failed: ${error.message}`);
+    }
   };
 
+  if (cartItems.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-xl font-bold text-gray-800 mb-2">Your Cart is Empty</h2>
+        <p className="text-gray-500 mb-6">Looks like you haven't added any shoes to your cart yet.</p>
+        <Link to="/" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors shadow-sm">
+          Go Shopping
+        </Link>
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <h2 className="text-xl font-bold text-gray-800 mb-6">Shopping Cart</h2>
-      
-      {cartItems.length === 0 ? (
-        <p className="text-gray-500">Your cart is empty.</p>
-      ) : (
-        <>
-          <ul className="divide-y divide-gray-200">
-            {cartItems.map((item) => (
-              <li key={item.product.id} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                
-                <Link to={`/product/${item.product.id}`} className="hover:text-blue-600 transition-colors font-medium">
-                  {item.product.name}
-                </Link>
-                
-                <div className="flex items-center gap-6">
-                  
-                  <div className="flex items-center gap-3">
-                    <CircleButton 
-                      onClick={() => onDecrease(item.product.id)} 
-                      disabled={item.quantity <= 1}
-                    >
-                      -
-                    </CircleButton>
-                    
-                    <span className="font-medium w-6 text-center">
-                      {item.quantity}
-                    </span>
-                    
-                    <CircleButton 
-                      onClick={() => onIncrease(item.product)}
-                    >
-                      +
-                    </CircleButton>
-                  </div>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-800 mb-4">Your Shopping Cart</h2>
 
-                  <span className="font-bold text-gray-800 w-24 text-right">
-                    {item.product.price * item.quantity} ₽
-                  </span>
-                  
-                  <button 
-                    onClick={() => onRemove(item.product.id)}
-                    className="text-gray-400 hover:text-red-500 transition-colors p-2"
-                    title="Remove item"
-                  >
-                    <TrashIcon />
-                  </button>
-                </div>
+      <div className="divide-y divide-gray-200 border border-gray-200 rounded-xl bg-white p-4 shadow-sm">
+        {cartItems.map((item) => (
+          <div key={item.product.id} className="flex items-center justify-between py-4 first:pt-2 last:pb-2">
+            <div className="flex items-center gap-4">
+              <img src={item.product.imageUrl} alt={item.product.name} className="w-16 h-16 object-cover rounded-md bg-gray-50 border border-gray-100" />
+              <div>
+                <h3 className="font-bold text-gray-800">{item.product.name}</h3>
+                <p className="text-gray-500 text-sm">{item.product.price} ₽</p>
+              </div>
+            </div>
 
-              </li>
-            ))}
-          </ul>
-          
-          <div className="border-t border-gray-200 pt-4 flex flex-col items-end">
-            <p className="text-lg text-gray-600 mb-4">
-              Total: <span className="text-2xl font-bold text-gray-800 ml-2">{totalPrice} ₽</span>
-            </p>
-            <button 
-              onClick={handleCheckout}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-md font-bold transition-colors shadow-sm"
-            >
-              Checkout
-            </button>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center border border-gray-200 rounded-md bg-gray-50">
+                <button onClick={() => onDecrease(item.product.id)} className="px-2 py-1 text-gray-500 hover:bg-gray-200 transition-colors rounded-l-md font-bold">-</button>
+                <span className="px-3 text-sm font-semibold text-gray-700">{item.quantity}</span>
+                <button onClick={() => onIncrease(item.product)} className="px-2 py-1 text-gray-500 hover:bg-gray-200 transition-colors rounded-r-md font-bold">+</button>
+              </div>
+              <span className="font-bold text-gray-800 w-20 text-right">{item.product.price * item.quantity} ₽</span>
+              <button onClick={() => onRemove(item.product.id)} className="text-red-500 hover:text-red-700 text-sm font-medium transition-colors">Remove</button>
+            </div>
           </div>
-        </>
-      )}
+        ))}
+      </div>
+
+      <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div>
+          <span className="text-gray-500 text-sm uppercase tracking-wider font-semibold block">Total Amount:</span>
+          <span className="text-2xl font-extrabold text-blue-600">{totalPrice} ₽</span>
+        </div>
+
+        <div className="flex gap-3 w-full sm:w-auto">
+          <button onClick={onClearCart} className="w-1/2 sm:w-auto border border-gray-300 hover:bg-gray-100 text-gray-700 font-medium px-4 py-2.5 rounded-lg transition-colors text-sm">
+            Clear Cart
+          </button>
+
+          {/* GUEST FLOW vs AUTHENTICATED USER CONDITIONAL RENDERING */}
+          {user ? (
+            /* User is logged in -> render standard submit checkout script button */
+            <button
+              onClick={handleCheckout}
+              className="w-1/2 sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded-lg transition-colors shadow-sm text-sm"
+            >
+              Place Order
+            </button>
+          ) : (
+            /* User is an unauthenticated Guest -> redirect to security gateway layout */
+            <Link
+              to="/auth"
+              className="w-1/2 sm:w-auto bg-amber-500 hover:bg-amber-600 text-white text-center font-bold px-6 py-2.5 rounded-lg transition-colors shadow-sm text-sm"
+            >
+              Login to Checkout 🔐
+            </Link>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
