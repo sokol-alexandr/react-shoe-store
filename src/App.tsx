@@ -8,33 +8,31 @@ import { ProductDetailsPage } from './pages/ProductDetailsPage';
 import { AdminOrdersPage } from './pages/AdminOrdersPage';
 import { CustomerProfilePage } from './pages/CustomerProfilePage';
 import { AdminAddProductPage } from './pages/AdminAddProductPage';
+import { AuthPage } from './pages/AuthPage';
 
 import { useAuth } from './context/AuthContext';
-// Import our custom database hook
 import { useDatabase } from './context/DatabaseContext';
 
 export default function App() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   
-  const { user, loginAs } = useAuth();
-  // Extract products from the database context
-  const { products, isLoading  } = useDatabase();
-  // Hook for programmatic navigation (redirecting)
+  // Pull real auth states and rename flags to handle conflicts gracefully
+  const { user, isLoading: isAuthLoading, logout } = useAuth();
+  const { products, isLoading: isDbLoading } = useDatabase();
   const navigate = useNavigate();
 
- const [currentRole, setCurrentRole] = useState(user?.role);
+  const [currentRole, setCurrentRole] = useState(user?.role);
 
   // EFFECT: Clear the cart and redirect to home ONLY when the user role actually changes
   useEffect(() => {
     if (user?.role !== currentRole) {
-      // This block will run only if the role switched (e.g., Customer <-> Admin)
       setCartItems([]); // Clear the cart safely
-      setCurrentRole(user?.role); // Update the tracked role
+      setCurrentRole(user?.role); // Update tracked role
       navigate('/'); // Redirect to homepage
     }
   }, [user?.role, currentRole, navigate]);
 
-  // --- Cart Microflows ---
+  // --- Cart Operations ---
   const handleAddToCart = (product: Product) => {
     setCartItems((prev) => {
       const existingItem = prev.find((item) => item.product.id === product.id);
@@ -54,14 +52,25 @@ export default function App() {
       )
     );
   };
+
   const handleClearCart = () => {
-  setCartItems([]);
+    setCartItems([]);
   };
+
   const handleRemoveFromCart = (productId: number) => {
     setCartItems((prev) => prev.filter((item) => item.product.id !== productId));
   };
 
   const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Application guard clause preventing flashes while validating persistent credentials
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center bg-gray-50">
+        <p className="text-gray-500 font-medium animate-pulse">Checking authentication...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -73,58 +82,53 @@ export default function App() {
           </Link>
           
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 text-sm">
-              <span className="font-medium mr-2">
-                Hi, {user?.name || 'Guest'}
-              </span>
-              
-              {user?.role === 'CUSTOMER' && (
-                <button 
-                  onClick={() => loginAs('EMPLOYEE')}
-                  className="bg-blue-800 px-3 py-1 rounded text-blue-100 hover:bg-blue-900 transition-colors"
-                >
-                  Switch to Admin
-                </button>
-              )}
-               {user?.role === 'EMPLOYEE' && (
-             <Link to="/admin/orders" className="text-sm font-medium text-blue-200 hover:text-white transition-colors mr-2">
-               Manage Orders Dashboard
-             </Link>
-              )}
-              {/* If user is an Employee, show admin navigation links */}
-              {user?.role === 'EMPLOYEE' && (
-                <div className="flex gap-4 mr-2">
-                  <Link to="/admin/orders" className="text-sm font-medium text-blue-200 hover:text-white transition-colors">
-                    Manage Orders
-                  </Link>
-                  <Link to="/admin/add-product" className="text-sm font-medium text-blue-200 hover:text-white transition-colors">
-                    + Add Product
-                  </Link>
-                </div>
-              )}
-              {user?.role === 'EMPLOYEE' && (
-                <button 
-                  onClick={() => loginAs('CUSTOMER')}
-                  className="bg-blue-800 px-3 py-1 rounded text-blue-100 hover:bg-blue-900 transition-colors"
-                >
-                  Switch to Client
-                </button>
+            <div className="flex items-center gap-4 text-sm">
+              {user ? (
+                <>
+                  <span className="font-medium mr-2">
+                    Hi, {user.name} ({user.role === 'EMPLOYEE' ? 'Admin' : 'Client'})
+                  </span>
+                  
+                  {/* Admin dashboard link paths */}
+                  {user.role === 'EMPLOYEE' && (
+                    <div className="flex gap-4 mr-2">
+                      <Link to="/admin/orders" className="text-sm font-medium text-blue-200 hover:text-white transition-colors">
+                        Manage Orders
+                      </Link>
+                      <Link to="/admin/add-product" className="text-sm font-medium text-blue-200 hover:text-white transition-colors">
+                        + Add Product
+                      </Link>
+                    </div>
+                  )}
+
+                  {/* Customer history link paths */}
+                  {user.role === 'CUSTOMER' && (
+                    <Link to="/profile" className="text-sm font-medium text-blue-200 hover:text-white transition-colors mr-2">
+                      My Orders
+                    </Link>
+                  )}
+
+                  <button 
+                    onClick={logout}
+                    className="bg-blue-700 px-3 py-1 rounded text-blue-100 hover:bg-blue-800 transition-colors"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                // Unauthenticated fallback link to login gateway
+                <Link to="/auth" className="bg-blue-700 hover:bg-blue-800 px-4 py-1.5 rounded-lg transition-colors font-medium">
+                  Login / Register
+                </Link>
               )}
             </div>
 
-            {/* If current user is Customer, show link to their profile/orders */}
-         {user?.role === 'CUSTOMER' && (
-           <Link to="/profile" className="text-sm font-medium text-blue-200 hover:text-white transition-colors mr-2">
-             My Orders
-           </Link>
-         )}
-
-         {/* Hide cart button if user is an Employee */}
-         {user?.role === 'CUSTOMER' && (
-           <Link to="/cart" className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg transition-colors font-medium">
-             Cart ({totalCartCount})
-           </Link>
-         )}
+            {/* Render cart buttons only for standard consumer viewports */}
+            {(!user || user.role === 'CUSTOMER') && (
+              <Link to="/cart" className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg transition-colors font-medium">
+                Cart ({totalCartCount})
+              </Link>
+            )}
           </div>
           
         </div>
@@ -132,9 +136,8 @@ export default function App() {
       
       <main className="max-w-4xl mx-auto p-6 mt-8 bg-white rounded-xl shadow-sm border border-gray-100">
         <Routes>
-          {/* We now pass 'products' from the DatabaseContext instead of hardcoded array */}
           <Route path="/" element={
-            isLoading ? (
+            isDbLoading ? (
               <div className="flex justify-center items-center h-64">
                 <p className="text-xl text-gray-500 font-semibold animate-pulse">Loading catalog...</p>
               </div>
@@ -155,6 +158,7 @@ export default function App() {
           <Route path="/admin/orders" element={<AdminOrdersPage />} />   
           <Route path="/profile" element={<CustomerProfilePage />} />
           <Route path="/admin/add-product" element={<AdminAddProductPage />} />
+          <Route path="/auth" element={<AuthPage />} />
         </Routes>
       </main>
     </div>

@@ -1,43 +1,62 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { supabase } from '../lib/supabase';
 import type { User, Role } from '../types';
 
-// Define the shape of our context data
 type AuthContextType = {
   user: User | null;
-  // Function to simulate login / role switching
-  loginAs: (role: Role) => void; 
-  logout: () => void;
+  isLoading: boolean; // True while verifying an active user session on application mount
+  logout: () => Promise<void>;
 };
 
-// Create mock users for testing purposes
-const MOCK_CUSTOMER: User = { id: 1, name: 'John (Customer)', role: 'CUSTOMER' };
-const MOCK_EMPLOYEE: User = { id: 2, name: 'Alice (Admin)', role: 'EMPLOYEE' };
-
-// Create the context with an empty default value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Provider component that wraps our app and holds the state
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Start with a customer logged in by default
-  const [user, setUser] = useState<User | null>(MOCK_CUSTOMER);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const loginAs = (role: Role) => {
-    if (role === 'CUSTOMER') setUser(MOCK_CUSTOMER);
-    if (role === 'EMPLOYEE') setUser(MOCK_EMPLOYEE);
+  // Helper method to convert a Supabase Auth user object into our internal domain User type
+  const mapSupabaseUser = (sbUser: any): User | null => {
+    if (!sbUser) return null;
+    
+    return {
+      id: sbUser.id,
+      name: sbUser.user_metadata?.name || 'Unknown User',
+      role: (sbUser.user_metadata?.role as Role) || 'CUSTOMER',
+    };
   };
 
-  const logout = () => {
-    setUser(null);
+  useEffect(() => {
+    // 1. Initial check to see if a valid session token exists in local storage
+    const checkActiveSession = async () => {
+      const { data: { user: sbUser } } = await supabase.auth.getUser();
+      setUser(mapSupabaseUser(sbUser));
+      setIsLoading(false);
+    };
+
+    checkActiveSession();
+
+    // 2. Global event listener that triggers on sign-in, sign-out, or token refreshes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(mapSupabaseUser(session?.user ?? null));
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) console.error('Error signing out from Supabase:', error.message);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loginAs, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, logout }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-// Custom hook to easily consume the context in any component
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

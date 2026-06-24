@@ -11,7 +11,7 @@ export type OrderStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'DELIVERED';
 
 // Represents an authenticated user (Similar to System.User)
 export type User = {
-  id: number;
+  id: number | string; 
   name: string;
   role: Role;
 };

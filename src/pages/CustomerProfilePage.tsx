@@ -3,16 +3,14 @@ import { useAuth } from '../context/AuthContext';
 import type { OrderStatus } from '../types';
 
 export function CustomerProfilePage() {
-  // Get all orders from the database context
+  // Access global database and authentication contexts
   const { orders } = useDatabase();
-  // Get the currently logged-in user
   const { user } = useAuth();
 
-  // Filter orders to display only those belonging to the current customer
-  // Equivalent to an XPath constraint: [Order_User = '[%CurrentUser%]']
-  const myOrders = orders.filter((order) => Number(order.customerId) === user?.id);
+  // FIX: Compare IDs as Strings since Supabase generates string UUIDs instead of numbers
+  const myOrders = orders.filter((order) => String(order.customerId) === String(user?.id));
 
-  // Helper function to render status badges (identical to Admin view for consistency)
+  // Helper function to render status badges consistently
   const getStatusBadge = (status: OrderStatus) => {
     const styles = {
       PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -30,7 +28,9 @@ export function CustomerProfilePage() {
   return (
     <div>
       <h2 className="text-xl font-bold text-gray-800 mb-2">Customer Profile</h2>
-      <p className="text-sm text-gray-500 mb-6">Account Holder: <span className="font-medium text-gray-700">{user?.name}</span></p>
+      <p className="text-sm text-gray-500 mb-6">
+        Account Holder: <span className="font-medium text-gray-700">{user?.name}</span>
+      </p>
 
       <h3 className="text-lg font-semibold text-gray-800 mb-4">My Purchase History</h3>
 
@@ -38,7 +38,7 @@ export function CustomerProfilePage() {
         <p className="text-gray-500 italic">You haven't placed any orders yet.</p>
       ) : (
         <div className="space-y-4">
-          {/* Reverse array to show the newest orders first */}
+          {/* Reverse the filtered array to ensure newest orders appear at the top */}
           {[...myOrders].reverse().map((order) => (
             <div key={order.id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-white">
               
@@ -52,7 +52,7 @@ export function CustomerProfilePage() {
                 {getStatusBadge(order.status)}
               </div>
 
-              {/* List of items within this specific order */}
+              {/* List out individual items inside this specific order */}
               <div className="space-y-2 mb-3">
                 {order.items.map((item) => (
                   <div key={item.product.id} className="flex justify-between text-sm">
